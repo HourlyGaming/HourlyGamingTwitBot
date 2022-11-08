@@ -3,7 +3,7 @@ const Twitter = require("twitter")
 const fs = require("fs")
 var request = require('request');
 const justreddit = require("justreddit");
-
+var already_vids = [];
 const express = require( 'express' ),
       app = express(),
       CronJob = require( 'cron' ).CronJob,
@@ -218,8 +218,9 @@ downloadFile(VIDEO_URL, 'assets');
 }
   console.log(old_date)
   
-  var already_vids = [];
+  var urltype = null;
   var media_title = null;
+  var image_title = null;
   var next_post_url = null
   var next_post_url_mp3 = null
   var save_random_number = null;
@@ -288,6 +289,16 @@ try {
 } catch(err) {
   console.log("No file /assets/audio.ts to delete");
 }
+  
+  const pathImage = __dirname + '/assets/post.png';
+
+try {
+  fs.unlinkSync(pathImage)
+  console.log("post.png deleted");
+  //file removed
+} catch(err) {
+  console.log("No file /assets/post.png to delete");
+}
         
 try{
 dotenv.config()
@@ -354,17 +365,18 @@ const redditFetch = require('reddit-fetch');
 
 redditFetch({
     subreddit: event,
-    sort: 'hot',
+    sort : 'hot',
     allowNSFW: false,
     allowModPost: false,
     allowCrossPost: false,
     allowVideo: true
 
 }).then(post => {
+    console.table(post);
     if(post.post_hint == 'hosted:video')
       {
-        urlfunny = post.url + "/DASH_720.mp4";
-        next_post_url = post.url + "/DASH_720.mp4";
+        urlfunny = post.url + "/DASH_240.mp4";
+        next_post_url = post.url + "/DASH_240.mp4";
         console.log("Found !")
         media_title = post.title;
         //console.table(post);//
@@ -375,7 +387,7 @@ redditFetch({
 
   if(already_vids.includes(next_post_url) == false)
     {
-      already_vids.push(next_post_url);
+      //already_vids.push(next_post_url);
     }
   
   
@@ -487,7 +499,7 @@ let URL240 = post.url + "/DASH_240.mp4";
 let xhr = new XMLHttpRequest();
 // Requests the headers that would be returned if the HEAD request's URL was instead requested with the HTTP GET method
 var FinalQuality = false;
-xhr.open('HEAD', URL1080, true);
+xhr.open('HEAD', URL720, true);
 
 xhr.onload = function() {
 // In here I get the Content Type from the HEAD of the response
@@ -499,38 +511,42 @@ xhr.onload = function() {
 //Function to play mp4 file
     }
     else {
-        console.log("Quality don't exist (1080p)")
+        console.log("Quality don't exist (720p)")
 // Function to play HLS m3u8 file
     }
 
 };
-/*
+
 xhr.send();
         wait(3000);
 if(FinalQuality == false)
 {
   xhr.open('HEAD', URL720, true);
   xhr.send();
-  wait(3000);
+  wait(10000);
   if(FinalQuality == false)
   {
     xhr.open('HEAD', URL480, true);
     xhr.send();
-    wait(3000);
+    wait(10000);
     if(FinalQuality == false)
     {
       xhr.open('HEAD', URL360, true);
       xhr.send();
-      wait(3000);
+      wait(10000);
       if(FinalQuality == false)
       {
-        var FinalQuality = post.url + "/DASH_480.mp4";
+        var FinalQuality = post.url + "/DASH_240.mp4";
         console.log("QUALITY : " + FinalQuality);
-        wait(3000);
+        wait(10000);
       }
+      else
+      {
+        
         var FinalQuality = post.url + "/DASH_360.mp4";
         console.log("QUALITY : " + FinalQuality);
-      wait(3000);
+      wait(10000);
+      }
     }
     else
       {
@@ -544,11 +560,7 @@ if(FinalQuality == false)
       console.log("QUALITY : " + FinalQuality);
     }
 }
-        else
-        {
-          var FinalQuality = post.url + "/DASH_1080.mp4";
-          console.log("QUALITY : " + FinalQuality);
-        }
+        wait(10000);
         if(FinalQuality != false)
           {
             downloadFile(FinalQuality, 'assets');
@@ -557,9 +569,6 @@ if(FinalQuality == false)
           {
             downloadFile(VIDEO_URL, 'assets');
           }
-          
-          */
-        downloadFile(VIDEO_URL, 'assets');
       console.log("Wait 10s... Starting DL...")
       wait(10000);
       console.log("Wait 10s... DL...")
@@ -567,7 +576,61 @@ if(FinalQuality == false)
   console.log("end ffmpeg")
           
         }
-                
+  else
+    {
+        if(already_vids.includes(post.url) == false)
+    {
+        urlfunny = post.url;
+        next_post_url = post.url;
+        console.log("Found ! PNG")
+      //already_vids.push(post.url);
+
+      //ITS A PNG
+      image_title = null;
+      console.log("Found IMAGE !! : " + post.url);
+      console.log("Image Title : " + image_title);
+      image_title = post.title;
+      const fs = require('fs');
+const path = require('path');
+const axios = require('axios').default;
+    const fileUrl = post.url;
+    const downloadFolder = __dirname + '/assets/';
+// fileUrl: the absolute url of the image or video you want to download
+// downloadFolder: the path of the downloaded file on your machine
+const downloadFile = async (fileUrl, downloadFolder) => {
+  // Get the file name
+  const fileName = path.basename("post.png");
+  // The path of the downloaded file on our machine
+  const localFilePath = path.resolve(__dirname, downloadFolder, fileName);
+  try {
+    const response = await axios({
+      method: 'GET',
+      url: fileUrl,
+      responseType: 'stream',
+    });
+    const w = response.data.pipe(fs.createWriteStream(localFilePath));
+    w.on('finish', () => {
+      console.log('Successfully downloaded file! PNG');
+      console.log(urlfunny);
+      urlfunny = post.url;
+      next_post_url = post.url;
+    });
+  } catch (err) { 
+    throw new Error(err);
+  }
+};
+
+// Testing
+const IMAGE_URL = post.url;
+downloadFile(IMAGE_URL, 'assets');
+      console.log("Wait 10s, DL PNG...")
+      wait(10000);
+    }
+      else
+        {
+          FindMedia();
+        }
+          }          
   });
 
 } catch(error){
@@ -596,6 +659,8 @@ const client = new Twitter({
   access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
 })
 
+if(next_post_url.substr(next_post_url.length-3, 3) == "mp4")
+  {
 const pathToFile = __dirname + '/assets/fullvideo.mp4'
 const mediaType = "video/mp4"
 
@@ -682,11 +747,37 @@ function finalizeUpload(mediaId) {
      console.log("Promise Rejected (code: 357)");
 });
 }
-
+          if(media_title.slice(0, 2) == "By")
+        {
+          function getRandomInt(max) {
+  return Math.floor(Math.random() * max);
+}
+const random_number = getRandomInt(5);
+          if(random_number == 1)
+            {
+              media_title = "🇫🇷";
+            }
+          else if(random_number == 2)
+            {
+              media_title = "Croissant";
+            }
+          else if(random_number == 3)
+            {
+              media_title = "Baguette";
+            }
+          else if(random_number == 4)
+            {
+              media_title = "Meme";
+            }
+          else
+            {
+              media_title = "";
+            }
+        }
 function publishStatusUpdate(mediaId) {
   return new Promise(function(resolve, reject) {
     client.post("statuses/update", {
-      status: `${media_title}\n#memes #meme #funny #lol #humor #viral #follow #rt #dankmemes #fun #lmao`, //Message
+      status: `${media_title}\n#gaming #games #game #gamer #videogames`, //Message
       media_ids: mediaId
     }, function(error, data, response) {
       if (error) {
@@ -696,6 +787,7 @@ function publishStatusUpdate(mediaId) {
       } else {
         old_date = new Date();
         console.log("Successfully uploaded media and tweeted!")
+        already_vids.push(next_post_url);
         refresh();
         resolve(data)
 
@@ -704,6 +796,44 @@ function publishStatusUpdate(mediaId) {
     })
   })
 }
+  }
+            else if(next_post_url.substr(next_post_url.length-3, 3) == "png" || next_post_url.substr(next_post_url.length-3, 3) == "jpg")
+              {
+                const fs = require('fs');
+const path = require('path');
+const mediaFile = fs.readFileSync(path.join(__dirname, '/assets/post.png'));
+const base64image = Buffer.from(mediaFile).toString('base64');
+T.post('media/upload', { media_data: base64image }, function (err, data, response) {
+  // now we can assign alt text to the media, for use by screen readers and
+  // other text-based presentations and interpreters
+  var mediaIdStr = data.media_id_string
+  var altText = "Like and Sub :3"
+  var meta_params = { media_id: mediaIdStr, alt_text: { text: altText } }
+ 
+  T.post('media/metadata/create', meta_params, function (err, data, response) {
+    if (!err) {
+      if(image_title.slice(0, 2) == "By")
+        {
+          image_title = "🇫🇷";
+        }
+      // now we can reference the media and post a tweet (media will attach to the tweet)
+      var params = { status: `${image_title}\n#gaming #games #game #gamer #videogames`, media_ids: [mediaIdStr] }
+ 
+      T.post('statuses/update', params, function (err, data, response) {
+        console.log("Successfully uploaded media and tweeted! PNG !")
+        already_vids.push(next_post_url);
+        old_date = new Date();
+        FindMedia();
+        next_post_url = null;
+      })
+    }
+  })
+})
+              }
+            else
+              {
+                FindMedia();
+              }
         console.log("already_vids : " + already_vids);
             console.log("FINISHED POSTING")
         //console.log("Wait 60s befind Finding Again (End Sending)")     
@@ -717,6 +847,7 @@ function publishStatusUpdate(mediaId) {
               wait(10000);
               FindMedia();
             }
+            
   }
   
   
@@ -726,10 +857,11 @@ function publishStatusUpdate(mediaId) {
   } ) ).start();
   
   //Auto Like (1H)
-/*
-      ( new CronJob( '0 * * * *', function() {
+
+      ( new CronJob( '*/5 * * * *', function() {
+        /*
         console.log("Like (start)");
-        const mediaArtsSearch = { q: "#memes", count: 100, result_type: "recent" };
+        const mediaArtsSearch = { q: "#leagueoflegends", count: 100, result_type: "recent" };
 
 // This function finds the latest tweet with the MeetMaye hashtag and retweets.
   try {
@@ -754,9 +886,9 @@ T.post('favorites/create', { id: retweetId })
     console.log(error)
   }
 
-        
+     */   
   } ) ).start();
-*/
+
   
   ( new CronJob( '*/3 * * * *', function() {
   const pathToFile = __dirname + '/assets/video.mp4'
@@ -836,6 +968,10 @@ getVideoDurationInSeconds('assets/video.mp4').then((duration) => {
                 console.error(err)
               }
             }
+          else
+            {
+              FindMedia();
+            }
         
         }
       else
@@ -852,7 +988,21 @@ getVideoDurationInSeconds('assets/video.mp4').then((duration) => {
      FindMedia();
 });
            }
-      
+      else if(next_post_url.substr(next_post_url.length-3, 3) == "png" || next_post_url.substr(next_post_url.length-3, 3) == "jpg")
+        {
+          if(already_vids.includes(next_post_url) == false)
+            {
+          //IF IMAGE !!
+          ok = true;
+          console.log("Its ok ! ITS A PNG !!");
+          console.log("Seems good, next post will be :")
+          console.log("Next post : " + next_post_url);
+            }
+          else
+            {
+              FindMedia();
+            }
+        }
     else
       {
           console.log("Link is not MP4 ??")
